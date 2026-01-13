@@ -84,12 +84,14 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.clear()
     await update.message.reply_text(
         "നമസ്കാരം 🙏\n"
         "ഞാൻ ASHA സഹായി.\n"
-        "ആരോഗ്യ  സംബന്ധമായ വിവരങ്ങൾക്ക് ഞാൻ നിങ്ങളെ സഹായിക്കും. \n"
+        "ആരോഗ്യ സംബന്ധമായ വിവരങ്ങൾക്ക് ഞാൻ നിങ്ങളെ സഹായിക്കും.\n"
         "എന്ത് സഹായം വേണമെന്ന് പറയൂ."
     )
+
 SAFETY_PROMPT = """
 You are ASHA Sahayi, a support assistant for ASHA health workers in India.
 
@@ -168,7 +170,9 @@ async def log_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         data["referral"],
         data["notes"]
         )
-    context.user_data.pop("log")
+    context.user_data.pop("log", None)
+    context.user_data.pop("log_step", None)
+
     await update.message.reply_text(
         "✅ സന്ദർശന വിവരങ്ങൾ സുരക്ഷിതമായി സേവ് ചെയ്തു."
         )
@@ -208,16 +212,23 @@ async def view_logs(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_text = update.message.text
+    # 🚫 If logging is active, AI must stay silent
+    if "log" in context.user_data:
+        return
 
-    # 1️⃣ Medication safety filter
+    if not update.message or not update.message.text:
+        return
+
+    user_text = update.message.text.strip()
+
+    # 🔴 Medication safety filter
     if is_medication_query(user_text):
+        context.user_data.clear()
         await update.message.reply_text(medication_refusal_message())
         return
 
-    # 2️⃣ Ask-before-advise (minimal)
+    # 🟡 Ask-before-advise
     clarification = needs_clarification(user_text, context.user_data)
-
     if clarification:
         await update.message.reply_text(
             clarification + "\n\n"
@@ -225,7 +236,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # 3️⃣ Safe AI guidance
+    # 🟢 Safe AI guidance
     try:
         response = client.models.generate_content(
             model="models/gemini-flash-latest",
@@ -240,6 +251,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     await update.message.reply_text(reply)
+
+
 LOGGING_STEPS = [
     "patient_label",
     "visit_date",
@@ -257,11 +270,17 @@ app.add_handler(CommandHandler("setworker", set_worker))
 app.add_handler(CommandHandler("log", log_start))
 app.add_handler(CommandHandler("logs", view_logs))
 
-# Logging conversation FIRST
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, log_handler))
+# Group 0 → logging flow (higher priority)
+app.add_handler(
+    MessageHandler(filters.TEXT & ~filters.COMMAND, log_handler),
+    group=0
+)
 
-# AI fallback LAST
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+# Group 1 → AI fallback (lower priority)
+app.add_handler(
+    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message),
+    group=1
+)
 
 print("🤖 ASHA Sahayi bot with Gemini is running...")
 init_db()
