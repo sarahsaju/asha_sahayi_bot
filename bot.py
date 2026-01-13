@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from db import init_db, save_visit, get_all_visits
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -115,6 +116,96 @@ Structure your response as:
 
 Never break these rules.
 """
+async def log_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if "worker_id" not in context.user_data:
+        await update.message.reply_text(
+            "ആദ്യം Worker ID സെറ്റ് ചെയ്യുക.\nഉദാ: /setworker ASHA_12"
+        )
+        return
+
+    context.user_data["log"] = {}
+    context.user_data["log_step"] = 0
+
+    await update.message.reply_text(
+        "📝 Patient Visit Logging ആരംഭിക്കുന്നു.\n\n"
+        "രോഗിയെ തിരിച്ചറിയാൻ ഒരു ലേബൽ നൽകുക (ഉദാ: Amma veedu / R.K):"
+    )
+
+async def log_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if "log" not in context.user_data:
+        return
+
+    step = context.user_data["log_step"]
+    field = LOGGING_STEPS[step]
+
+    context.user_data["log"][field] = update.message.text
+    context.user_data["log_step"] += 1
+
+    if context.user_data["log_step"] < len(LOGGING_STEPS):
+        next_field = LOGGING_STEPS[context.user_data["log_step"]]
+
+        prompts = {
+            "age_group": "വയസ് വിഭാഗം (0–5 / 6–18 / Adult):",
+            "complaint": "പ്രധാന പരാതിയ്‌ക്ക് ഒരു വാക്ക്:",
+            "danger_signs": "അപകട സൂചനകൾ ഉണ്ടോ? (ഉണ്ട് / ഇല്ല):",
+            "referral": "PHC റഫറൽ നൽകിയോ? (അതെ / ഇല്ല):",
+            "notes": "കുറിപ്പുകൾ (ഐച്ഛികം):"
+        }
+
+        await update.message.reply_text(prompts.get(next_field, "അടുത്ത വിവരങ്ങൾ നൽകുക:"))
+        return
+
+    # Save to DB
+    data = context.user_data["log"]
+    worker_id = context.user_data["worker_id"]
+    save_visit(
+        worker_id,
+        data["visit_date"],
+        data["patient_label"],
+        data["age_group"],
+        data["complaint"],
+        data["danger_signs"],
+        data["referral"],
+        data["notes"]
+        )
+    context.user_data.pop("log")
+    await update.message.reply_text(
+        "✅ സന്ദർശന വിവരങ്ങൾ സുരക്ഷിതമായി സേവ് ചെയ്തു."
+        )
+
+
+    
+
+
+async def set_worker(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if context.args:
+        context.user_data["worker_id"] = context.args[0]
+        await update.message.reply_text(
+            f"✅ Worker ID set: {context.args[0]}"
+        )
+    else:
+        await update.message.reply_text(
+            "ദയവായി Worker ID നൽകുക.\nഉദാ: /setworker ASHA_12"
+        )
+async def view_logs(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    rows = get_all_visits()
+
+    if not rows:
+        await update.message.reply_text("ഇപ്പോൾ ലോഗുകൾ ഇല്ല.")
+        return
+
+    message = "📋 Visit Logs:\n\n"
+    for row in rows[-5:]:
+        message += (
+            f"Worker: {row[1]}, "
+            f"Date: {row[2]}, "
+            f"Patient: {row[3]}, "
+            f"Issue: {row[5]}, "
+            f"Referral: {row[7]}\n"
+        )
+
+    await update.message.reply_text(message)
+
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
@@ -149,11 +240,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     await update.message.reply_text(reply)
+LOGGING_STEPS = [
+    "patient_label",
+    "visit_date",
+    "age_group",
+    "complaint",
+    "danger_signs",
+    "referral",
+    "notes"
+]
 
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("setworker", set_worker))
+app.add_handler(CommandHandler("log", log_start))
+app.add_handler(CommandHandler("logs", view_logs))
+
+# Logging conversation FIRST
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, log_handler))
+
+# AI fallback LAST
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 print("🤖 ASHA Sahayi bot with Gemini is running...")
+init_db()
 app.run_polling()
