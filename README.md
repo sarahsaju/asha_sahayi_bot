@@ -1,5 +1,5 @@
 
-# ASHA Sahayi 🤖  
+# ASHA Sahayi 
 *A Telegram Bot to Support ASHA Frontline Health Workers*
 
 ASHA Sahayi is a Telegram-based AI assistant designed to support **ASHA (Accredited Social Health Activist) workers** with safe, ethical, and context-aware health guidance and **patient visit logging**.
@@ -10,7 +10,7 @@ This project was developed as part of the internship selection task for the
 
 ---
 
-## 🎯 Problem Context
+## Problem Context
 
 ASHA workers are frontline health workers who regularly conduct home visits and community outreach.  
 During field work, they often need:
@@ -24,16 +24,16 @@ ASHA Sahayi is built as a **decision-support tool**, not a medical authority.
 
 ---
 
-## ✨ Key Features
+##  Key Features
 
-### 🤖 AI-Assisted Health Guidance
+###  AI-Assisted Health Guidance
 - Malayalam language support  
 - Ask-before-advise workflow  
 - Red-flag symptom checking  
 - Referral-first guidance  
 - Short, simple, ASHA-friendly responses  
 
-### 🔐 Ethical & Safety Guardrails
+###  Ethical & Safety Guardrails
 - ❌ No diagnosis  
 - ❌ No medicine names  
 - ❌ No dosages  
@@ -41,21 +41,21 @@ ASHA Sahayi is built as a **decision-support tool**, not a medical authority.
 - Explicit disclaimers and PHC referral advice  
 - Medication-query safety filter  
 
-### 📝 Patient Visit Logging (Day 5)
+###  Patient Visit Logging 
 - SQLite-based local database  
 - Worker ID–based accountability  
 - Privacy-safe patient labels (no full names)  
 - Structured visit logging  
 - Log retrieval for recent visits  
 
-### 👩‍⚕️ Worker-Centric Design
+### Worker-Centric Design
 - `/setworker` to set ASHA worker ID  
 - `/log` command for guided visit logging  
 - `/logs` command to review recent entries  
 
 ---
 
-## 🧠 Design Philosophy
+## Design Philosophy
 
 - **Human-in-the-loop**: AI assists, ASHA workers decide  
 - **Referral over reassurance**  
@@ -66,7 +66,7 @@ ASHA Sahayi is built as a **decision-support tool**, not a medical authority.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Python**  
 - **Telegram Bot API**  
@@ -262,7 +262,7 @@ The repository includes screenshots demonstrating:
 
 ---
 
-## 🔐 Ethical AI & Data Privacy
+## Ethical AI & Data Privacy
 
 * No medical diagnosis or prescriptions
 * No medicine names or dosages
@@ -275,7 +275,7 @@ A detailed explanation is available in **`ethics.md`**.
 
 ---
 
-## 🌱 Future Improvements
+## Future Improvements
 
 * Multi-language support (Tamil, Hindi)
 * Structured visit summaries for supervisors
@@ -285,10 +285,11 @@ A detailed explanation is available in **`ethics.md`**.
 
 ---
 
-## 📜 License
+## License
 
 This project is developed for academic and research purposes as part of an internship evaluation task.
 
 
 ---
+
 
